@@ -1,0 +1,189 @@
+---
+title: "Oncology Clinical Trial Analysis"
+author: "Najiya K"
+output: html_document
+---
+
+# 🧬 Project Overview
+
+This project evaluates the effectiveness and safety of a treatment compared to placebo using survival analysis and adverse event data.
+
+---
+
+# 📦 Load Packages and Data
+
+```{r}
+library(haven)
+library(dplyr)
+library(survival)
+
+adsl <- read_sas("adsl.sas7bdat")
+adtte <- read_sas("adtte.sas7bdat")
+adae <- read_sas("adae.sas7bdat")
+```
+
+---
+
+# 🧪 Overall Survival (OS)
+
+## Prepare Dataset
+
+```{r}
+adtte_os <- adtte %>%
+  filter(PARAMCD == "OS") %>%
+  left_join(adsl, by = "USUBJID")
+```
+
+---
+
+## Kaplan-Meier Curve
+
+```{r fig.width=6, fig.height=5}
+km_fit <- survfit(Surv(AVAL, CNSR == 0) ~ TRT01P, data = adtte_os)
+
+plot(km_fit, col = c("blue", "red"), lwd = 2,
+     xlab = "Time", ylab = "Survival Probability")
+
+legend("topright",
+       legend = c("Placebo", "Treatment"),
+       col = c("blue", "red"),
+       lwd = 2)
+```
+
+### 🧠 Insight
+The treatment group shows improved survival compared to placebo.
+
+---
+
+## Log-Rank Test
+
+```{r}
+logrank_test <- survdiff(Surv(AVAL, CNSR == 0) ~ TRT01P, data = adtte_os)
+logrank_test
+```
+
+### 🧠 Insight
+The difference between groups is statistically significant.
+
+---
+
+## Cox Model (Hazard Ratio)
+
+```{r}
+cox_os <- coxph(Surv(AVAL, CNSR == 0) ~ TRT01P, data = adtte_os)
+summary(cox_os)
+```
+
+### 🧠 Insight
+The treatment reduces the risk of death compared to placebo.
+
+---
+
+# 🔬 Progression-Free Survival (PFS)
+
+## Prepare Dataset
+
+```{r}
+adtte_pfs <- adtte %>%
+  filter(PARAMCD == "PF") %>%
+  left_join(adsl, by = "USUBJID")
+```
+
+---
+
+## Kaplan-Meier Curve
+
+```{r fig.width=6, fig.height=5}
+km_fit_pfs <- survfit(Surv(AVAL, CNSR == 0) ~ TRT01P, data = adtte_pfs)
+
+plot(km_fit_pfs,
+     col = c("blue", "red"),
+     lwd = 2,
+     xlab = "Time",
+     ylab = "Progression-Free Survival Probability")
+
+legend("topright",
+       legend = c("Placebo", "Treatment"),
+       col = c("blue", "red"),
+       lwd = 2)
+```
+
+---
+
+## Cox Model (Adjusted)
+
+```{r}
+cox_pfs <- coxph(Surv(AVAL, CNSR == 0) ~ TRT01P + AGE + SEX, data = adtte_pfs)
+summary(cox_pfs)
+```
+
+### 🧠 Insight
+No statistically significant improvement in progression-free survival was observed.
+
+---
+
+# 💊 Safety Analysis (ADAE)
+
+## Prepare Dataset
+
+```{r}
+adae2 <- adae %>%
+  left_join(adsl, by = "USUBJID")
+```
+
+---
+
+## Total Adverse Events
+
+```{r}
+adae_summary <- adae2 %>%
+  group_by(TRT01A) %>%
+  summarise(
+    total_AE = n(),
+    patients = n_distinct(USUBJID)
+  )
+
+adae_summary
+```
+
+### 🧠 Insight
+Adverse events are similar between treatment and placebo groups.
+
+---
+
+## Severity Distribution
+
+```{r}
+ae_severity <- adae2 %>%
+  group_by(TRT01A, AESEV) %>%
+  summarise(count = n())
+
+ae_severity
+```
+
+### 🧠 Insight
+No increase in severe adverse events in the treatment group.
+
+---
+
+## Common Adverse Events
+
+```{r}
+common_ae <- adae2 %>%
+  group_by(TRT01A, AEDECOD) %>%
+  summarise(count = n()) %>%
+  arrange(TRT01A, desc(count)) %>%
+  group_by(TRT01A) %>%
+  slice_head(n = 5)
+
+common_ae
+```
+
+### 🧠 Insight
+Common adverse events include headache, fatigue, nausea, and neutropenia.
+
+---
+
+# ⚖️ Final Conclusion
+
+The treatment demonstrated a statistically significant improvement in overall survival compared to placebo, while no significant difference was observed in progression-free survival. Safety analysis showed a comparable incidence and severity of adverse events between treatment and placebo groups, with no increase in severe adverse events. Overall, the benefit–risk profile of the treatment appears favorable.
