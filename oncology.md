@@ -50,7 +50,7 @@ legend("topright",
        lwd = 2)
 ```
 
-![](oncology_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
+![](unnamed-chunk-3-1.png)<!-- -->
 
 ### 🧠 Insight
 
@@ -140,7 +140,7 @@ legend("topright",
        lwd = 2)
 ```
 
-![](oncology_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+![](unnamed-chunk-7-1.png)<!-- -->
 
 ------------------------------------------------------------------------
 
