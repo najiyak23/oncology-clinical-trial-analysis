@@ -1,40 +1,44 @@
-# 🧬 Clinical Study Report (CSR Style)
+# 🧬 Clinical Study Report (CSR)–Style Summary
 
-## 📌 Title
-**Evaluation of Efficacy and Safety of Treatment Compared to Placebo in an Oncology Clinical Trial Using ADaM Datasets**
+## Title  
+**Evaluation of Efficacy and Safety of an Investigational Treatment Compared to Placebo in a Simulated Oncology Clinical Trial Using ADaM Datasets**
 
 ---
 
-## 📖 1. Introduction
+## 📌 1. Introduction
 
-This analysis evaluates the efficacy and safety of an investigational treatment compared to placebo in a simulated oncology clinical trial. CDISC-compliant ADaM datasets were used to perform survival and safety analyses. Key endpoints include:
+This analysis evaluates the efficacy and safety of an investigational treatment versus placebo in a **simulated oncology clinical trial**. The underlying data were generated in **SAS** as **CDISC ADaM‑compliant datasets** (ADSL, ADTTE, ADAE) and then read into **R** for statistical analysis.
 
-- Overall Survival (OS)
-- Progression-Free Survival (PFS)
-- Adverse Events (AEs)
+**Key endpoints assessed were:**  
+- Overall Survival (OS)  
+- Progression‑Free Survival (PFS)  
+- Safety via adverse events (AEs)
 
 ---
 
 ## 🎯 2. Objectives
 
-### Primary Objective
-- To evaluate the effectiveness and safety of the treatment compared to placebo
+**Primary Objective**  
+- To evaluate the **effectiveness and safety** of the investigational treatment compared to placebo.
 
-### Secondary Objectives
-- Assess improvement in Overall Survival (OS)
-- Evaluate Progression-Free Survival (PFS)
-- Analyze incidence and severity of adverse events
-- Determine overall benefit–risk profile
+**Secondary Objectives**  
+- Assess improvement in **Overall Survival (OS)**.  
+- Evaluate **Progression‑Free Survival (PFS)**.  
+- Analyze the **incidence and severity** of adverse events.  
+- Determine the **overall benefit–risk profile** of the treatment.
 
 ---
 
 ## 📊 3. Data Sources
 
-The analysis used the following datasets:
+The analysis was based on simulated datasets created in **SAS** following the **CDISC ADaM standards** for oncology trials.
 
-- **ADSL**: Subject-level dataset (demographics, treatment assignment)
-- **ADTTE**: Time-to-event dataset (OS and PFS)
-- **ADAE**: Adverse events dataset (safety outcomes)
+**Datasets used:**  
+- **ADSL**: Subject‑level analysis dataset (demographics, treatment assignment, baseline characteristics)  
+- **ADTTE**: Time‑to‑event analysis dataset (OS and PFS endpoints, with analysis variables such as `AVAL`, `STARTDT`, and `CNSR`)  
+- **ADAE**: Adverse events dataset (serious and non‑serious AEs, coded terms, severity, reporter, etc.)
+
+These datasets were exported to `.sas7bdat` files and read into **R** for analysis using the `haven` package.
 
 ---
 
@@ -42,21 +46,21 @@ The analysis used the following datasets:
 
 ### 4.1 Efficacy Analysis
 
-- Kaplan–Meier method used for survival estimation
-- Log-rank test used to compare treatment groups
-- Cox proportional hazards model used to estimate hazard ratios (HR)
-- PFS model adjusted for covariates (Age and Sex)
+Time‑to‑event endpoints (OS and PFS) were analyzed using:  
+- **Kaplan–Meier method** for survival probability estimation by treatment group.  
+- **Log‑rank test** to compare survival curves between treatment and placebo arms.  
+- **Cox proportional hazards regression** to estimate **hazard ratios (HR)**, with the PFS model adjusted for **age and sex** as covariates.
 
----
 
 ### 4.2 Safety Analysis
 
-Safety evaluation included:
+Safety was summarized using the ADAE dataset:  
+- **Total number of adverse events** by treatment group.  
+- **Number of patients with ≥1 adverse event**.  
+- **Distribution of events by severity** (Mild, Moderate, Severe).  
+- **Listing of most common adverse events** (e.g., headache, fatigue, nausea, neutropenia).
 
-- Total number of adverse events
-- Number of patients with ≥1 adverse event
-- Distribution by severity (Mild, Moderate, Severe)
-- Identification of most common adverse events
+Figures and tables were generated in R using `dplyr` for data manipulation and base plotting / `ggplot2`‑style summaries (if applicable).
 
 ---
 
@@ -64,116 +68,92 @@ Safety evaluation included:
 
 ### 5.1 Overall Survival (OS)
 
-- Hazard Ratio (HR): **0.44**
-- ~56% reduction in risk of death
-- Log-rank test: **p = 0.01 (statistically significant)**
+- **Hazard Ratio (HR): 0.44**  
+- Approximate **56% reduction in the risk of death** in the treatment arm versus placebo.  
+- **Log‑rank test p‑value: 0.01** (statistically significant).
 
-**👉 Interpretation:**  
-The treatment provides a clinically meaningful survival benefit.
+**Interpretation:**  
+The treatment provides a **clinically meaningful survival benefit** as compared with placebo, with a clear improvement in OS over the follow‑up period.
 
----
+### 5.2 Progression‑Free Survival (PFS)
 
-### 5.2 Progression-Free Survival (PFS)
+- **Hazard Ratio (HR): 0.85**  
+- **p‑value: 0.56** (not statistically significant).  
+- Adjustment for **age and sex** did not materially change the estimate.
 
-- Hazard Ratio (HR): **0.85**
-- p-value: **0.56 (not statistically significant)**
-- Adjustment for age and sex: no major impact
-
-**👉 Interpretation:**  
-No statistically significant improvement in progression-free survival.
-
----
+**Interpretation:**  
+There was **no statistically significant improvement in PFS** with the investigational treatment, suggesting that the OS benefit may not be fully explained by a delay in disease progression.
 
 ### 5.3 Safety Analysis
 
 #### 5.3.1 Overall Adverse Events
 
-| Group     | Total AEs | Patients with AE |
-|----------|----------|------------------|
-| Placebo  | 103      | 47               |
-| Treatment| 97       | 47               |
+| Group      | Total AEs | Patients with ≥1 AE |
+|-----------|-----------|---------------------|
+| Placebo   | 103       | 47                  |
+| Treatment | 97        | 47                  |
 
-**👉 Interpretation:**  
-No increase in overall adverse events in the treatment group.
-
----
+**Interpretation:**  
+There is **no increase in the overall number of adverse events** in the treatment group compared with placebo.
 
 #### 5.3.2 Severity of Adverse Events
 
-- Severe: Placebo (33) vs Treatment (30)
-- Moderate: Similar between groups
-- Mild: Slightly lower in treatment group
+- **Severe AEs**: Placebo (33) vs Treatment (30)  
+- **Moderate AEs**: Similar across groups  
+- **Mild AEs**: Slightly lower in the treatment group  
 
-**👉 Interpretation:**  
-No increase in severe adverse events.
-
----
+**Interpretation:**  
+The **burden of severe adverse events is comparable** between groups, with no evidence of increased toxicity with treatment.
 
 #### 5.3.3 Common Adverse Events
 
-Most frequent AEs:
-
+Most frequently observed AEs:  
 - Headache  
 - Fatigue  
 - Nausea  
 - Neutropenia  
 
-**👉 Interpretation:**  
-No unexpected safety signals observed.
+**Interpretation:**  
+The AE profile is **consistent with expectations for oncology trials**, and no unexpected or off‑target safety signals were identified.
 
 ---
 
 ## ⚖️ 6. Benefit–Risk Assessment
 
-- Significant improvement in Overall Survival
-- No significant change in Progression-Free Survival
-- Comparable safety profile across groups
+- **Significant improvement in Overall Survival (OS)** (HR = 0.44, p = 0.01).  
+- **No significant improvement in Progression‑Free Survival (PFS)** (HR = 0.85, p = 0.56).  
+- **Comparable safety profile** between treatment and placebo, with similar rates and severity of AEs.
 
-**👉 Overall Assessment:**  
-The treatment demonstrates a favorable benefit–risk profile.
+**Overall Assessment:**  
+The treatment demonstrates a **favorable benefit–risk profile**, driven primarily by a survival advantage without a meaningful increase in toxicity.
 
 ---
 
 ## 🧠 7. Discussion
 
-The treatment improves overall survival in oncology patients.  
-However, the lack of PFS improvement suggests survival benefit may not be directly linked to disease progression delay.  
+In this simulated oncology trial, the investigational treatment was associated with a **substantial reduction in the risk of death**, as reflected by a hazard ratio of 0.44 for OS. The absence of a statistically significant effect on PFS suggests that the survival benefit may arise from factors beyond simple disease‑progression delay (e.g., post‑progression survival, treatment‑related effects on competing risks, or other non‑tumor‑related mechanisms).
 
-Importantly, the safety profile remains comparable to placebo, supporting treatment tolerability.
+Critically, the **safety profile remained comparable** to placebo, with similar total AEs, severity distribution, and no unexpected events. This supports the **clinical tolerability** of the regimen and underpins its potential for further development in oncology indications.
 
 ---
 
 ## ✅ 8. Conclusion
 
-The treatment demonstrated:
+The treatment demonstrated:  
+- **Significant improvement in Overall Survival**.  
+- **No significant effect on Progression‑Free Survival**.  
+- **Comparable safety profile** to placebo.
 
-- Significant improvement in Overall Survival
-- Comparable safety profile vs placebo
-- No significant effect on Progression-Free Survival
-
-**👉 Final Conclusion:**  
-The overall benefit–risk profile supports the clinical value of the treatment.
+**Final Conclusion:**  
+The **overall benefit–risk profile** supports the clinical value of the investigational treatment in this simulated oncology trial.
 
 ---
 
 ## 🛠️ 9. Tools and Programming
 
-- **R Programming Language**
-- Packages:
-  - `survival`
-  - `dplyr`
-  - `haven`
-
----
-
-## 💻 10. Project Files
-
-- `oncology_analysis.Rmd` → Full reproducible analysis  
-- `oncology_analysis.md` → GitHub-rendered report  
-- `oncology_analysis_files/` → Plots and figures  
-
----
-
-## 🚀 Author
-
-**Najiya K**
+- **SAS**: Generation of **ADaM datasets** (ADSL, ADTTE, ADAE) following CDISC standards for oncology trials.  
+- **R Programming Language**:  
+  - Packages:  
+    - `survival` (Kaplan–Meier, log‑rank, Cox models)  
+    - `dplyr` (data summarization and manipulation)  
+    - `haven` (reading SAS `.sas7bdat` files into R)
