@@ -51,7 +51,6 @@ Time‑to‑event endpoints (OS and PFS) were analyzed using:
 - **Log‑rank test** to compare survival curves between treatment and placebo arms.  
 - **Cox proportional hazards regression** to estimate **hazard ratios (HR)**, with the PFS model adjusted for **age and sex** as covariates.
 
-In SAS, the ADTTE dataset is typically consumed in PROC `LIFETEST` and PROC `PHREG`; in R, equivalent analyses were performed using the `survival` package.
 
 ### 4.2 Safety Analysis
 
