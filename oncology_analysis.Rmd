@@ -1,0 +1,284 @@
+---
+title: "Oncology Clinical Trial Analysis (Simulated Data)"
+author: "Najiya K"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(haven)
+library(dplyr)
+library(survival)
+library(knitr)
+```
+
+# Project Overview
+
+This project demonstrates an end-to-end analysis workflow for a **simulated**
+two-arm oncology trial (Treatment vs Placebo). CDISC ADaM-style datasets
+(ADSL, ADTTE, ADAE) were generated in SAS and analysed in R.
+
+**Important:** all data are simulated. The aim is to show the analysis workflow
+(survival analysis and safety summaries), not to make clinical claims about any
+real treatment.
+
+# Statistical Analysis Plan (summary)
+
+| Item | Specification |
+|---|---|
+| Population | All randomised patients in ADSL (efficacy); patients with a treatment arm in ADSL (safety) |
+| Efficacy endpoints | Overall survival (OS, `PARAMCD = "OS"`) and progression-free survival (PFS, `PARAMCD = "PF"`) |
+| Event definition | Event when `CNSR == 0`; censored otherwise |
+| Primary comparison | Treatment vs Placebo, Kaplan-Meier estimates and log-rank test |
+| Effect estimate | Hazard ratio (HR) with 95% CI from a Cox proportional hazards model |
+| Covariates | Primary models unadjusted for both OS and PFS; PFS additionally adjusted for age and sex as a sensitivity analysis |
+| Assumption check | Proportional hazards assessed with `cox.zph` |
+| Safety | Number and percentage of patients with at least one adverse event (AE), by maximum severity, and most common AE terms, using arm sizes from ADSL as denominators |
+
+# Load Packages and Data
+
+```{r load-data}
+# Place the .sas7bdat files in the same folder as this file
+adsl  <- read_sas("adsl.sas7bdat")
+adtte <- read_sas("adtte.sas7bdat")
+adae  <- read_sas("adae.sas7bdat")
+
+# Subject-level variables used throughout
+adsl_keep <- adsl %>%
+  select(any_of(c("USUBJID", "TRT01P", "TRT01A", "AGE", "SEX")))
+
+# Time unit label (taken from ADTTE if the AVALU variable exists)
+time_unit <- if ("AVALU" %in% names(adtte)) unique(adtte$AVALU)[1] else "unit not specified"
+time_lab  <- paste0("Time (", time_unit, ")")
+
+# Helper functions for formatting and for extracting a hazard ratio
+fmt_p <- function(p) ifelse(p < 0.001, "<0.001", sprintf("%.3f", p))
+
+cox_hr <- function(fit, term = "TRT01PTreatment") {
+  s  <- summary(fit)$coefficients
+  ci <- summary(fit)$conf.int
+  c(hr = ci[term, "exp(coef)"], lo = ci[term, "lower .95"],
+    hi = ci[term, "upper .95"], p = s[term, "Pr(>|z|)"])
+}
+
+fmt_hr <- function(r) {
+  sprintf("HR %.2f, 95%% CI %.2f to %.2f, p = %s", r["hr"], r["lo"], r["hi"], fmt_p(r["p"]))
+}
+
+# Build an analysis dataset for one time-to-event parameter
+prep_tte <- function(code) {
+  adtte %>%
+    filter(PARAMCD == code) %>%
+    select(-any_of(c("TRT01P", "TRT01A", "AGE", "SEX"))) %>%
+    left_join(adsl_keep, by = "USUBJID") %>%
+    mutate(TRT01P = factor(TRT01P, levels = c("Placebo", "Treatment")),
+           EVENT  = as.integer(CNSR == 0))
+}
+
+# Number-at-risk table at chosen time points
+risk_table <- function(fit, times) {
+  s <- summary(fit, times = times, extend = TRUE)
+  data.frame(Arm = sub("TRT01P=", "", as.character(s$strata)),
+             Time = s$time, At_risk = s$n.risk)
+}
+```
+
+## Analysis populations
+
+```{r populations}
+adsl_keep %>% count(TRT01P, name = "N patients") %>% kable()
+```
+
+# Overall Survival (OS)
+
+```{r os-data}
+adtte_os <- prep_tte("OS")
+km_os <- survfit(Surv(AVAL, EVENT) ~ TRT01P, data = adtte_os)
+```
+
+## Kaplan-Meier curve
+
+```{r os-km}
+plot(km_os, col = c("blue", "red"), lwd = 2,
+     xlab = time_lab, ylab = "Overall survival probability")
+legend("bottomleft", legend = c("Placebo", "Treatment"),
+       col = c("blue", "red"), lwd = 2, bty = "n")
+```
+
+Number at risk:
+
+```{r os-risk}
+tp <- round(seq(0, max(adtte_os$AVAL, na.rm = TRUE), length.out = 6))
+risk_table(km_os, tp) %>%
+  tidyr::pivot_wider(names_from = Time, values_from = At_risk) %>%
+  kable()
+```
+
+Events, censoring and median survival by arm:
+
+```{r os-median}
+kable(as.data.frame(summary(km_os)$table)[, c("records", "events", "median", "0.95LCL", "0.95UCL")],
+      digits = 1)
+```
+
+## Log-rank test
+
+```{r os-logrank}
+lr_os <- survdiff(Surv(AVAL, EVENT) ~ TRT01P, data = adtte_os)
+lr_os
+lr_os_p <- 1 - pchisq(lr_os$chisq, df = length(lr_os$n) - 1)
+```
+
+## Cox model (hazard ratio)
+
+```{r os-cox}
+cox_os <- coxph(Surv(AVAL, EVENT) ~ TRT01P, data = adtte_os)
+summary(cox_os)
+res_os <- cox_hr(cox_os)
+```
+
+Proportional hazards check:
+
+```{r os-ph}
+ph_os <- cox.zph(cox_os)
+ph_os
+plot(ph_os)
+```
+
+**Interpretation.** In this simulated dataset, OS differed between arms
+(`r fmt_hr(res_os)`; log-rank p = `r fmt_p(lr_os_p)`). The confidence
+interval is wide, so the data are compatible with a range of effect sizes
+from modest to large.
+
+# Progression-Free Survival (PFS)
+
+```{r pfs-data}
+adtte_pfs <- prep_tte("PF")
+km_pfs <- survfit(Surv(AVAL, EVENT) ~ TRT01P, data = adtte_pfs)
+```
+
+## Kaplan-Meier curve
+
+```{r pfs-km}
+plot(km_pfs, col = c("blue", "red"), lwd = 2,
+     xlab = time_lab, ylab = "Progression-free survival probability")
+legend("bottomleft", legend = c("Placebo", "Treatment"),
+       col = c("blue", "red"), lwd = 2, bty = "n")
+```
+
+```{r pfs-median}
+kable(as.data.frame(summary(km_pfs)$table)[, c("records", "events", "median", "0.95LCL", "0.95UCL")],
+      digits = 1)
+```
+
+## Log-rank test and Cox models
+
+```{r pfs-models}
+lr_pfs <- survdiff(Surv(AVAL, EVENT) ~ TRT01P, data = adtte_pfs)
+lr_pfs_p <- 1 - pchisq(lr_pfs$chisq, df = length(lr_pfs$n) - 1)
+
+# Primary (unadjusted, consistent with OS)
+cox_pfs <- coxph(Surv(AVAL, EVENT) ~ TRT01P, data = adtte_pfs)
+res_pfs <- cox_hr(cox_pfs)
+
+# Sensitivity analysis (adjusted for age and sex)
+cox_pfs_adj <- coxph(Surv(AVAL, EVENT) ~ TRT01P + AGE + SEX, data = adtte_pfs)
+res_pfs_adj <- cox_hr(cox_pfs_adj)
+
+summary(cox_pfs_adj)
+cox.zph(cox_pfs)
+```
+
+**Interpretation.** For PFS the unadjusted estimate was `r fmt_hr(res_pfs)`
+and the age- and sex-adjusted estimate was `r fmt_hr(res_pfs_adj)`. The
+confidence intervals include 1, so the data neither show nor rule out a PFS
+difference: the analysis is too imprecise to tell. With simulated data, an OS
+difference without a clear PFS difference most plausibly reflects how the data
+were generated or chance, and should not be read as a biological mechanism.
+
+# Safety Analysis (ADAE)
+
+## Safety population and data checks
+
+```{r safety-prep}
+safety_n <- adsl_keep %>% count(TRT01A, name = "N")
+safety_n %>% kable()
+
+ae <- adae %>%
+  select(-any_of("TRT01A")) %>%
+  left_join(adsl_keep %>% select(USUBJID, TRT01A), by = "USUBJID")
+
+# Keep treatment-emergent AEs only, if that flag exists in ADAE
+if ("TRTEMFL" %in% names(ae)) {
+  ae <- ae %>% filter(TRTEMFL == "Y")
+  cat("Filtered to treatment-emergent AEs (TRTEMFL == 'Y').\n")
+} else {
+  cat("No TRTEMFL variable in ADAE: all recorded AEs are summarised.\n")
+}
+
+# Check for truncated AE terms (SAS character variables default to 8 characters)
+ae %>% filter(nchar(AEDECOD) == 8) %>% distinct(AEDECOD)
+```
+
+If a term such as `Neutrope` appears above, the SAS step that created ADAE
+truncated the variable. See the SAS fix in the repository notes
+(`LENGTH AEDECOD $40;`) and regenerate the dataset before running the rest.
+
+## Patients with at least one adverse event
+
+```{r ae-any}
+ae_any <- ae %>%
+  distinct(USUBJID, TRT01A) %>%
+  count(TRT01A, name = "Patients with AE") %>%
+  left_join(safety_n, by = "TRT01A") %>%
+  left_join(ae %>% count(TRT01A, name = "Total AE events"), by = "TRT01A") %>%
+  mutate(`% of arm` = round(100 * `Patients with AE` / N, 1))
+kable(ae_any)
+```
+
+## Maximum severity per patient
+
+```{r ae-sev}
+ae_sev <- ae %>%
+  mutate(sev = factor(AESEV, levels = c("MILD", "MODERATE", "SEVERE"), ordered = TRUE)) %>%
+  group_by(TRT01A, USUBJID) %>%
+  summarise(max_sev = max(sev), .groups = "drop") %>%
+  count(TRT01A, max_sev) %>%
+  left_join(safety_n, by = "TRT01A") %>%
+  mutate(pct = round(100 * n / N, 1))
+kable(ae_sev)
+```
+
+## Most common adverse events (patients, by preferred term)
+
+```{r ae-common}
+ae_common <- ae %>%
+  distinct(USUBJID, TRT01A, AEDECOD) %>%
+  count(TRT01A, AEDECOD, name = "Patients") %>%
+  left_join(safety_n, by = "TRT01A") %>%
+  mutate(`% of arm` = round(100 * Patients / N, 1)) %>%
+  group_by(TRT01A) %>%
+  arrange(desc(Patients), .by_group = TRUE) %>%
+  slice_head(n = 5)
+kable(ae_common)
+```
+
+**Interpretation.** Compare the percentages of patients per arm above, not the
+raw event counts, because the arms are different sizes. These summaries are
+descriptive; with this sample size they cannot establish that the safety
+profiles are equivalent.
+
+# Conclusion
+
+In this simulated trial, treatment was associated with a lower hazard of death
+than placebo (`r fmt_hr(res_os)`), while PFS showed no clear difference
+(`r fmt_hr(res_pfs)`), with wide confidence intervals for both. The AE summaries
+show no obvious safety signal in the simulated data, but they are descriptive
+only. Because the data are simulated, none of this is evidence about a real
+treatment; the project demonstrates the analysis workflow.
+
+# Reproducibility
+
+```{r session}
+sessionInfo()
+```
