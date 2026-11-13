@@ -133,8 +133,7 @@ The AE summaries show no obvious safety signal on treatment. They are descriptiv
 - Confidence intervals for OS and PFS are wide.
 - Safety results are descriptive, with no formal testing.
 - AE severity uses the categories in the data (mild, moderate, severe), not CTCAE grades.
-- SAS cut the AE term "Neutropenia" to 8 characters ("Neutrope"). It was restored to the full term in R, and the full term is used throughout this report.
-
+  
 ## 8. Conclusion
 
 In this simulated oncology trial, treatment was associated with longer overall survival than placebo (HR 0.44, 95% CI 0.22 to 0.86). PFS showed no clear difference (HR 0.82, 95% CI 0.47 to 1.43), and the AE summaries showed no sign of more toxicity on treatment. The results are imprecise and come from simulated data, so they illustrate the analysis rather than support a conclusion about a real treatment.
